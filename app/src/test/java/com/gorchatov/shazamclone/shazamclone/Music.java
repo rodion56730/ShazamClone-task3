@@ -1,4 +1,4 @@
-package com.gorchatov.shazamclone;
+package com.gorchatov.shazamclone.shazamclone;
 
 import androidx.annotation.NonNull;
 import androidx.room.Entity;

@@ -1,4 +1,4 @@
-package com.gorchatov.shazamclone;
+package com.gorchatov.shazamclone.shazamclone;
 
 import androidx.room.Dao;
 import androidx.room.Delete;

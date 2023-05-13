@@ -1,4 +1,4 @@
-package com.gorchatov.shazamclone;
+package com.gorchatov.shazamclone.shazamclone;
 
 import android.app.Application;
 import android.os.Environment;
