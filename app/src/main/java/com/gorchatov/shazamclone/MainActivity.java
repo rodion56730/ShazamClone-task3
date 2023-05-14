@@ -1,49 +1,30 @@
 package com.gorchatov.shazamclone;
 
-import static android.Manifest.permission.MANAGE_EXTERNAL_STORAGE;
 import static android.Manifest.permission.READ_MEDIA_AUDIO;
 import static android.Manifest.permission.RECORD_AUDIO;
-import static android.Manifest.permission.WRITE_EXTERNAL_STORAGE;
+import static android.os.Build.VERSION.SDK_INT;
 
 import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
-import android.Manifest;
-import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
 import android.media.AudioFormat;
 import android.media.AudioRecord;
-import android.media.MediaPlayer;
 import android.media.MediaRecorder;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.CountDownTimer;
-import android.os.Environment;
 import android.util.ArrayMap;
 import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import java.io.ByteArrayOutputStream;
-import java.io.DataOutputStream;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Comparator;
-import java.util.Iterator;
 import java.util.List;
-import java.util.ListIterator;
 import java.util.Map;
 
 public class MainActivity extends AppCompatActivity {
@@ -71,7 +52,7 @@ public class MainActivity extends AppCompatActivity {
         int BytesPerElement = 2; // 2 bytes in 16bit format
         if (ActivityCompat.checkSelfPermission(this, RECORD_AUDIO)
                 != PackageManager.PERMISSION_GRANTED || ActivityCompat.checkSelfPermission(this, READ_MEDIA_AUDIO) != PackageManager.PERMISSION_GRANTED) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 RequestPermissions();
             }
         }
@@ -98,7 +79,7 @@ public class MainActivity extends AppCompatActivity {
             recorder.startRecording();
             recordingThread = new Thread(() -> {
                 try {
-                    writeAudioDataToFile();
+                    writeAudioDataToByte();
                 } catch (IOException e) {
                     throw new RuntimeException(e);
                 }
@@ -108,6 +89,8 @@ public class MainActivity extends AppCompatActivity {
             timer.cancel();
             timer.start();
         });
+
+
         musicDao = App.getInstance().getDatabase().musicDao();
         System.out.println(musicDao.getAll().size()+"==================");
         //============================
@@ -134,16 +117,15 @@ public class MainActivity extends AppCompatActivity {
     }
 
 
+
     int BufferElements2Rec = 4096;
     final int TOTAL_SIZE = 1764000;
     byte[][] allBytes = new byte[TOTAL_SIZE / BufferElements2Rec][];
 
-    private void writeAudioDataToFile() throws IOException {
-        // Write the output audio in byte
+    private void writeAudioDataToByte() throws IOException {
         byte[] bData = new byte[BufferElements2Rec];
         int t = 0;
         while (isRecording && t < 430) {
-            // gets the voice output from microphone to byte format
             recorder.read(bData, 0, 4096);
             allBytes[t] = bData.clone();
             t++;
@@ -167,8 +149,6 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
-        // this method is called when user will
-        // grant the permission for audio recording.
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         if (requestCode == 1) {
             if (grantResults.length > 0) {
@@ -183,9 +163,8 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    @RequiresApi(api = Build.VERSION_CODES.TIRAMISU)
+
     public boolean CheckPermissions() {
-        // this method is used to check permission
         int result = ContextCompat.checkSelfPermission(getApplicationContext(), READ_MEDIA_AUDIO);
         int result1 = ContextCompat.checkSelfPermission(getApplicationContext(), RECORD_AUDIO);
         return result == PackageManager.PERMISSION_GRANTED && result1 == PackageManager.PERMISSION_GRANTED;
@@ -193,8 +172,6 @@ public class MainActivity extends AppCompatActivity {
 
     @RequiresApi(api = Build.VERSION_CODES.TIRAMISU)
     private void RequestPermissions() {
-        // this method is used to request the
-        // permission for audio recording and storage.
         ActivityCompat.requestPermissions(MainActivity.this, new String[]{RECORD_AUDIO, READ_MEDIA_AUDIO}, 1);
     }
 
@@ -215,12 +192,12 @@ public class MainActivity extends AppCompatActivity {
     public static final int[] band = {40, 80, 120, 180, 300};
     public long[][] partsHash;
     public double[][] highScores;
-    public double[] recordedHash;
+    public long[] recordedHash;
 
 
     private void RecognizeMusic(byte[][] allBytes) {
 
-        int sampledPartSize = allBytes.length;
+        int sampledPartSize = TOTAL_SIZE / CHUNK_SIZE;;
 
         Complex[][] result = new Complex[sampledPartSize][];
         Complex[] mComplex = new Complex[CHUNK_SIZE];
@@ -233,7 +210,7 @@ public class MainActivity extends AppCompatActivity {
 
         highScores = new double[result.length][5];
         partsHash = new long[result.length][5];
-        recordedHash = new double[result.length];
+        recordedHash = new long[result.length];
 
         for (int i = 0; i < highScores.length; i++) {
             for (int j = 0; j < 5; j++) {
@@ -255,17 +232,23 @@ public class MainActivity extends AppCompatActivity {
         Map<String, Integer> matches = new ArrayMap<>();
         List<Music> dBase = musicDao.getAll();
         for (Music music : dBase) {
-            for (double hash : recordedHash) {
-                if (hash == music.getHash()) {
+            for (long hash : recordedHash) {
+                if (hash ==  Long.parseLong(music.getHash())) {
                     matches.put(music.getName(), (matches.get(music.getName()) == null ? 0 : matches.get(music.getName())) + 1);
-                    //System.out.println(music.getHash());
                 }
             }
+        }
+        for (int i = 0; i < dBase.size(); i++) {
+            System.out.println(dBase.get(i).getHash());
+        }
+        System.out.println("========================");
+        for (long hash : recordedHash) {
+            System.out.println(hash);
         }
         matches.entrySet().stream().max(Map.Entry.comparingByValue()).ifPresent(max -> nameSongTV.setText(max.getKey()));
         System.out.println(matches);
         System.out.println(dBase.size());
-        //        try (FileWriter writer = new FileWriter(Environment.getExternalStorageDirectory() + "/Download/recordBytes.txt", false)) {
+        //try (FileWriter writer = new FileWriter(Environment.getExternalStorageDirectory() + "/Download/recordBytes.txt", false)) {
 //            writer.write(Arrays.deepToString(allBytes));
 //            writer.flush();
 //        } catch (IOException ex) {
@@ -299,12 +282,12 @@ public class MainActivity extends AppCompatActivity {
         System.out.println(temp.length);
         RecognizeMusic(temp);
         for (int i = 0; i < recordedHash.length; i++) {
-            musicDao.insert(new Music("example", (long) recordedHash[i], i));
+            musicDao.insert(new Music(i,"example", Long.toString(recordedHash[i]), i));
         }
     }
 
 
-    private static final int FUZ_FACTOR = 3;
+    private static final int FUZ_FACTOR = 4;
 
 //    private long hash(double[] hash) {
 //        long finalHash = 0;

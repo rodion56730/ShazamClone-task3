@@ -1,11 +1,8 @@
 package com.gorchatov.shazamclone;
 
 import android.app.Application;
-import android.os.Environment;
 
 import androidx.room.Room;
-
-import java.io.File;
 
 public class App extends Application {
     private static App instance;
@@ -16,8 +13,9 @@ public class App extends Application {
     public void onCreate() {
         super.onCreate();
         instance = this;
-        musicDatabase = Room.databaseBuilder(this, MusicDatabase.class, "Musics.db")
-                .createFromFile(new File(Environment.getExternalStorageDirectory() + "/Download/myfin.db"))
+        musicDatabase = Room.databaseBuilder(this, MusicDatabase.class, "Music")
+                .allowMainThreadQueries()
+                .createFromAsset("database/myfin.db")
                 .build();//сюда надо путь к готовой БД
     }
 
